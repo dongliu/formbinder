@@ -138,22 +138,33 @@ Binder.PropertyAccessor.bindTo = function(obj) {
 Binder.TypeRegistry = {
   'string': {
     format: function(value) {
-      return String(value);
+      return value ? String(value) : '';
     },
     parse: function(value) {
-      return value ? value : undefined;
+      return value ? value : null;
+    }
+  },
+  'stringArray': {
+    format: function(value) {
+      return value.join();
+    },
+    parse: function(value) {
+      return value ? value.replace(/^(?:\s*,?)+/, '').replace(/(?:\s*,?)*$/, '').split(/\s*,\s*/) : [];
     }
   },
   'number': {
     format: function(value) {
-      return String(value);
+      return value ? String(value) : '';
     },
     parse: function(value) {
-      return value ? Number(value) : undefined;
+      return value ? Number(value) : null;
     }
   },
   'boolean': {
     format: function(value) {
+      if (value == null) {
+        return '';
+      }
       return String(value);
     },
     parse: function(value) {
@@ -197,6 +208,9 @@ Binder.FormBinder.prototype = {
   _format: function(path, value, element) {
     var type = this._getType(element);
     var handler = Binder.TypeRegistry[type];
+    if (type === 'stringArray') {
+      return handler.format(value);
+    }
     if (Binder.Util.isArray(value) && handler) {
       var nv = [];
       for (var i = 0; i < value.length; i++) {
@@ -275,20 +289,18 @@ Binder.FormBinder.prototype = {
   deserializeField: function(element, obj) {
     var accessor = this._getAccessor(obj);
     var value = accessor.get(element.name);
-    // do not format undefined, change it to ""
+    // do not deserialize undefined
     if (typeof value != 'undefined') {
       value = this._format(element.name, value, element);
-    } else {
-      value = "";
-    }
-    if (element.type == "radio" || element.type == "checkbox") {
-      element.checked = this._isSelected(element.value, value);
-    } else if (element.type == "select-one" || element.type == "select-multiple") {
-      for (var j = 0; j < element.options.length; j++) {
-        element.options[j].selected = this._isSelected(element.options[j].value, value);
+      if (element.type == "radio" || element.type == "checkbox") {
+        element.checked = this._isSelected(element.value, value);
+      } else if (element.type == "select-one" || element.type == "select-multiple") {
+        for (var j = 0; j < element.options.length; j++) {
+          element.options[j].selected = this._isSelected(element.options[j].value, value);
+        }
+      } else {
+        element.value = value;
       }
-    } else {
-      element.value = value;
     }
   }
 };
